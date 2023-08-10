@@ -7,17 +7,17 @@ import java.io.ObjectOutputStream
 
 class ObjectUtil {
     fun toBytes(entity: Any): ByteArray {
-        var baos = ByteArrayOutputStream()
-        var oos = ObjectOutputStream(baos)
+        val baos = ByteArrayOutputStream()
+        val oos = ObjectOutputStream(baos)
         oos.writeObject(entity)
-        var bufferClass = baos.toByteArray()
-        return bufferClass;
+        oos.flush()
+        return baos.toByteArray()
     }
+
     fun fromBytes(byteArray: ByteArray): Mensagem {
-        val bufferResposta: ByteArray = byteArray
-        val bais = ByteArrayInputStream(bufferResposta)
+        val bais = ByteArrayInputStream(byteArray)
         val ois = ObjectInputStream(bais)
-        val resposta: Mensagem = ois.readObject() as Mensagem
-        return resposta;
+        val resposta = ois.readObject() as Mensagem
+        return resposta
     }
 }

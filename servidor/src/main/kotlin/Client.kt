@@ -23,7 +23,7 @@ fun main() {
                 var jogo: Jogo = Jogo();
                 jogo.setPosicoes(posicoes)
                 var objUtil: ObjectUtil = ObjectUtil();
-                var mensagem = Mensagem(jogo.getPosicoes()!!);
+                var mensagem = Mensagem();
                 val mBytes = objUtil.toBytes(mensagem);
                 val packet = buildPacket {
                     writeByteBufferDirect(mBytes.size) { buffer -> buffer.put(mBytes) }
@@ -33,7 +33,7 @@ fun main() {
                 val responsePacket = client.receive()
                 val receivedMessage = objUtil.fromBytes(responsePacket.packet.readBytes())
 
-                println("Resposta do servidor: ${receivedMessage.getPosicoes().toString()}")
+                println("Resposta do servidor: ${receivedMessage.toString()}")
 
             }
 
