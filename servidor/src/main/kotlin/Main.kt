@@ -11,14 +11,14 @@ import kotlinx.coroutines.*
 
 var count = 0
 val addresses: MutableSet<SocketAddress> = mutableSetOf() // Usando um conjunto para evitar duplicatas
-var salas: MutableList<Sala> = mutableListOf();
+var salas: MutableMap<Int, Sala> = mutableMapOf();
 fun main(args: Array<String>) {
-
+    velha()
     runBlocking {
         val selectorManager = SelectorManager(Dispatchers.IO)
         val server = aSocket(selectorManager)
             .udp()
-            .bind(InetSocketAddress("192.168.1.27", 9002))
+            .bind(InetSocketAddress("192.168.1.25", 9002))
         println("Server is listening at ${server.localAddress}")
 
         server.use {
@@ -32,18 +32,42 @@ fun main(args: Array<String>) {
                     val packetSize = datagram.packet.readInt()
                     val receivedBytes = ByteArray(packetSize)
                     datagram.packet.readFully(receivedBytes)
-
-                    val mensagem = objUtil.fromBytes(receivedBytes)
-                    if(mensagem.getCriarSala()){
-                        criarSala()
-                    }
                     val nmensagem = Mensagem()
-                    nmensagem.setSalas(salas);
-
-
+                    val mensagem = objUtil.fromBytes(receivedBytes)
+                    if (mensagem.getCriarSala()) {
+                        criarSala()
+                    } else if (mensagem.getEntrar()) {
+                        val pos = salas[mensagem.getIdSala()]
+                        if (pos!!.getAddresses().size>2){
+                            nmensagem.setEntrar(false)
+                        }else{
+                            val add:  MutableSet<SocketAddress> = mutableSetOf()
+                            add.addAll(pos.getAddresses())
+                            add.add(datagram.address)
+                            pos.setAddresses(add)
+                            println("Client conectando a sala:" + mensagem.getIdSala())
+                            nmensagem.setIdSala(mensagem.getIdSala()!!)
+                            nmensagem.setEntrar(true)
+                        }
+                    } else if (mensagem.getMovimento()) {
+                        val pos = salas[mensagem.getIdSala()]
+                        pos!!.getJogo().setPosicoes(mensagem.getSala()!!.getJogo().getPosicoes()!!)
+                    }
+                    val nsalas: MutableMap<Int, Sala> = mutableMapOf()
+                    nsalas.putAll(salas)
+                    var tAddresses: MutableSet<SocketAddress> = mutableSetOf();
+                    nsalas.forEach {
+                        it.value.setJogadores(it.value.getAddresses().size)
+                        it.value.setAddresses(mutableSetOf())
+                    }
+                    nmensagem.setSalas(nsalas);
                     val mBytes = objUtil.toBytes(nmensagem)
-
-                    for (x in addresses) {
+                    if (mensagem.getSala() != null) {
+                        tAddresses = mensagem.getSala()!!.getAddresses()
+                    } else {
+                        tAddresses.addAll(addresses);
+                    }
+                    for (x in tAddresses) {
                         launch(Dispatchers.IO) {
                             try {
                                 val builder = BytePacketBuilder()
@@ -51,8 +75,9 @@ fun main(args: Array<String>) {
                                 builder.writeFully(mBytes)
 
                                 server.send(Datagram(builder.build(), x))
-                                println("Sent packet to: $x")
+
                                 println(salas)
+                                println("Sent packet to: $x")
                             } catch (e: Throwable) {
                                 e.printStackTrace()
                             }
@@ -67,7 +92,19 @@ fun main(args: Array<String>) {
     }
 }
 
-fun criarSala(){
+fun criarSala() {
     val sala: Sala = Sala(mutableSetOf(), Jogo())
-    salas.add(sala)
+    salas[salas.size] = sala
+}
+
+fun velha(){
+    val board = mutableMapOf(
+        "A1" to 1, "A2" to 2, "A3" to 1,
+        "B1" to 2, "B2" to 1, "B3" to 2,
+        "C1" to 1, "C2" to 2, "C3" to 1
+    )
+    var jogo = Jogo();
+    jogo.setPosicoes(board)
+    val result = jogo.checkGameStatus()
+    println("Status do jogo: $result")
 }
