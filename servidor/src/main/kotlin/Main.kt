@@ -1,24 +1,21 @@
-import Classes.Jogo
-import Classes.Mensagem
-import Classes.ObjectUtil
-import Classes.Sala
+import Classes.*
 import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
-import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
-import io.ktor.utils.io.streams.*
 import kotlinx.coroutines.*
+import java.util.UUID
 
 var count = 0
-val addresses: MutableSet<SocketAddress> = mutableSetOf() // Usando um conjunto para evitar duplicatas
+val addresses: MutableMap<UUID, SocketAddress> = mutableMapOf() // Usando um conjunto para evitar duplicatas
 var salas: MutableMap<Int, Sala> = mutableMapOf();
+var usuarios: MutableSet<Usuario> = mutableSetOf()
 fun main(args: Array<String>) {
     velha()
     runBlocking {
         val selectorManager = SelectorManager(Dispatchers.IO)
         val server = aSocket(selectorManager)
             .udp()
-            .bind(InetSocketAddress("192.168.1.25", 9002))
+            .bind(InetSocketAddress("192.168.1.24", 9002))
         println("Server is listening at ${server.localAddress}")
 
         server.use {
@@ -27,24 +24,31 @@ fun main(args: Array<String>) {
             while (true) {
                 try {
                     val datagram = server.receive()
-                    addresses.add(datagram.address)
-
                     val packetSize = datagram.packet.readInt()
                     val receivedBytes = ByteArray(packetSize)
                     datagram.packet.readFully(receivedBytes)
                     val nmensagem = Mensagem()
                     val mensagem = objUtil.fromBytes(receivedBytes)
+                    debugMessage(mensagem)
+                    if (mensagem.getUsuario() == null) {
+                        val nusuario = Usuario()
+                        addresses[nusuario.getId()] = datagram.address
+                        nmensagem.setUsuario(nusuario)
+                        usuarios.add(nusuario)
+                        println(nmensagem.getUsuario().toString())
+                    }
+
                     if (mensagem.getCriarSala()) {
                         criarSala()
                     } else if (mensagem.getEntrar()) {
                         val pos = salas[mensagem.getIdSala()]
-                        if (pos!!.getAddresses().size>2){
+                        if (pos!!.getIds().size > 2) {
                             nmensagem.setEntrar(false)
-                        }else{
-                            val add:  MutableSet<SocketAddress> = mutableSetOf()
-                            add.addAll(pos.getAddresses())
-                            add.add(datagram.address)
-                            pos.setAddresses(add)
+                        } else {
+                            val add: MutableSet<UUID> = mutableSetOf()
+                            add.addAll(pos.getIds())
+                            add.add(mensagem.getUsuario()!!.getId())
+                            pos.setIds(add)
                             println("Client conectando a sala:" + mensagem.getIdSala())
                             nmensagem.setIdSala(mensagem.getIdSala()!!)
                             nmensagem.setEntrar(true)
@@ -57,15 +61,17 @@ fun main(args: Array<String>) {
                     nsalas.putAll(salas)
                     var tAddresses: MutableSet<SocketAddress> = mutableSetOf();
                     nsalas.forEach {
-                        it.value.setJogadores(it.value.getAddresses().size)
-                        it.value.setAddresses(mutableSetOf())
+                        it.value.setJogadores(it.value.getIds().size)
+                        it.value.setIds(mutableSetOf())
                     }
                     nmensagem.setSalas(nsalas);
                     val mBytes = objUtil.toBytes(nmensagem)
                     if (mensagem.getSala() != null) {
-                        tAddresses = mensagem.getSala()!!.getAddresses()
+                        for (x in mensagem.getSala()!!.getIds()) {
+                            tAddresses.add(addresses[x]!!)
+                        }
                     } else {
-                        tAddresses.addAll(addresses);
+                        tAddresses.addAll(addresses.values);
                     }
                     for (x in tAddresses) {
                         launch(Dispatchers.IO) {
@@ -97,7 +103,16 @@ fun criarSala() {
     salas[salas.size] = sala
 }
 
-fun velha(){
+fun debugMessage(mensagem: Mensagem) {
+    println(mensagem.getIdSala())
+    println(mensagem.getSala().toString())
+    println(mensagem.getCriarSala())
+    println(mensagem.getMovimento())
+    println(mensagem.getEntrar())
+    println(mensagem.getUsuario().toString())
+}
+
+fun velha() {
     val board = mutableMapOf(
         "A1" to 1, "A2" to 2, "A3" to 1,
         "B1" to 2, "B2" to 1, "B3" to 2,
