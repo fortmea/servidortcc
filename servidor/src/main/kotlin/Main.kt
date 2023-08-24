@@ -19,7 +19,7 @@ fun main(args: Array<String>) {
         println("Server is listening at ${server.localAddress}")
 
         server.use {
-            val objUtil: ObjectUtil = ObjectUtil()
+            val objUtil = ObjectUtil()
 
             while (true) {
                 try {
@@ -56,15 +56,25 @@ fun main(args: Array<String>) {
                     } else if (mensagem.getMovimento()) {
                         val pos = salas[mensagem.getIdSala()]
                         pos!!.getJogo().setPosicoes(mensagem.getSala()!!.getJogo().getPosicoes()!!)
+                        if (pos.getJogo().checkGameStatus() != -1) {
+                            pos.setResetarTabuleiro(true)
+                            if (pos.getJogo().checkGameStatus() == 1) {
+                                val nplacar: MutableMap<UUID, Int> = pos.getPlacar();
+                                nplacar[pos.getSimbolo()[1]!!] = pos.getPlacar()[pos.getSimbolo()[1]]!! + 1
+                                pos.setPlacar(nplacar)
+                            }
+                            else if (pos.getJogo().checkGameStatus() == 2) {
+                                val nplacar: MutableMap<UUID, Int> = pos.getPlacar();
+                                nplacar[pos.getSimbolo()[2]!!] = pos.getPlacar()[pos.getSimbolo()[2]]!! + 1
+                                pos.setPlacar(nplacar)
+                            }
+                        }
+                    } else if (mensagem.getSair()) {
+                        val pos = salas[mensagem.getIdSala()]
+                        pos!!.getIds().remove(mensagem.getUsuario()!!.getId())
                     }
-                    val nsalas: MutableMap<Int, Sala> = mutableMapOf()
-                    nsalas.putAll(salas)
-                    var tAddresses: MutableSet<SocketAddress> = mutableSetOf();
-                    nsalas.forEach {
-                        it.value.setJogadores(it.value.getIds().size)
-                        it.value.setIds(mutableSetOf())
-                    }
-                    nmensagem.setSalas(nsalas);
+                    val tAddresses: MutableSet<SocketAddress> = mutableSetOf();
+                    nmensagem.setSalas(salas);
                     val mBytes = objUtil.toBytes(nmensagem)
                     if (mensagem.getSala() != null) {
                         for (x in mensagem.getSala()!!.getIds()) {
@@ -99,23 +109,24 @@ fun main(args: Array<String>) {
 }
 
 fun criarSala() {
-    val sala: Sala = Sala(mutableSetOf(), Jogo())
+    val sala = Sala(mutableSetOf(), Jogo())
     salas[salas.size] = sala
 }
 
 fun debugMessage(mensagem: Mensagem) {
-    println(mensagem.getIdSala())
-    println(mensagem.getSala().toString())
-    println(mensagem.getCriarSala())
-    println(mensagem.getMovimento())
-    println(mensagem.getEntrar())
-    println(mensagem.getUsuario().toString())
+    println("IDSALA: " + mensagem.getIdSala())
+    println("SALA OBJ: " + mensagem.getSala().toString())
+    println("CRIARSALA: " + mensagem.getCriarSala())
+    println("ÉMOVIMENTO: " + mensagem.getMovimento())
+    println("ENTRAR: " + mensagem.getEntrar())
+    println("USUARIO OBJ: " + mensagem.getUsuario().toString())
+    println("SAIR: " + mensagem.getSair())
 }
 
 fun velha() {
     val board = mutableMapOf(
         "A1" to 1, "A2" to 2, "A3" to 1,
-        "B1" to 2, "B2" to 1, "B3" to 2,
+        "B1" to 2, "B2" to 2, "B3" to 2,
         "C1" to 1, "C2" to 2, "C3" to 1
     )
     var jogo = Jogo();
