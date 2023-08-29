@@ -42,15 +42,20 @@ fun main(args: Array<String>) {
                         criarSala()
                     } else if (mensagem.getEntrar()) {
                         val pos = salas[mensagem.getIdSala()]
-                        if (pos!!.getIds().size > 2) {
+                        if (pos!!.getUsuarios().size > 2) {
                             nmensagem.setEntrar(false)
                         } else {
-                            val add: MutableSet<UUID> = mutableSetOf()
-                            add.addAll(pos.getIds())
-                            add.add(mensagem.getUsuario()!!.getId())
-                            pos.setIds(add)
+                            val add: MutableSet<Usuario> = mutableSetOf()
+                            add.addAll(pos.getUsuarios())
+                            add.add(mensagem.getUsuario()!!)
+                            pos.setUsuarios(add)
+                            for (usuario in pos.getUsuarios()) {
+                                pos.getPlacar()[usuario.getId()]=0
+                            }
                             println("Client conectando a sala:" + mensagem.getIdSala())
                             nmensagem.setIdSala(mensagem.getIdSala()!!)
+                            mensagem.setSala(pos)
+                            println(pos.toString())
                             nmensagem.setEntrar(true)
                         }
                     } else if (mensagem.getMovimento()) {
@@ -60,25 +65,29 @@ fun main(args: Array<String>) {
                             pos.setResetarTabuleiro(true)
                             if (pos.getJogo().checkGameStatus() == 1) {
                                 val nplacar: MutableMap<UUID, Int> = pos.getPlacar();
-                                nplacar[pos.getSimbolo()[1]!!] = pos.getPlacar()[pos.getSimbolo()[1]]!! + 1
+                                val placaratual =
+                                    if (pos.getPlacar()[pos.getSimbolo()[1]] == null) 0 else pos.getPlacar()[pos.getSimbolo()[1]]
+                                nplacar[pos.getSimbolo()[1]!!] = placaratual!!+1
                                 pos.setPlacar(nplacar)
-                            }
-                            else if (pos.getJogo().checkGameStatus() == 2) {
+                            } else if (pos.getJogo().checkGameStatus() == 2) {
                                 val nplacar: MutableMap<UUID, Int> = pos.getPlacar();
-                                nplacar[pos.getSimbolo()[2]!!] = pos.getPlacar()[pos.getSimbolo()[2]]!! + 1
+                                val placaratual =
+                                    if (pos.getPlacar()[pos.getSimbolo()[2]] == null) 0 else pos.getPlacar()[pos.getSimbolo()[2]]
+                                nplacar[pos.getSimbolo()[2]!!] = placaratual!! + 1
                                 pos.setPlacar(nplacar)
                             }
                         }
                     } else if (mensagem.getSair()) {
                         val pos = salas[mensagem.getIdSala()]
-                        pos!!.getIds().remove(mensagem.getUsuario()!!.getId())
+                        pos!!.getUsuarios().remove(mensagem.getUsuario()!!)
+                        pos.setResetarTabuleiro(true)
                     }
                     val tAddresses: MutableSet<SocketAddress> = mutableSetOf();
                     nmensagem.setSalas(salas);
                     val mBytes = objUtil.toBytes(nmensagem)
                     if (mensagem.getSala() != null) {
-                        for (x in mensagem.getSala()!!.getIds()) {
-                            tAddresses.add(addresses[x]!!)
+                        for (x in mensagem.getSala()!!.getUsuarios()) {
+                            tAddresses.add(addresses[x.getId()]!!)
                         }
                     } else {
                         tAddresses.addAll(addresses.values);
