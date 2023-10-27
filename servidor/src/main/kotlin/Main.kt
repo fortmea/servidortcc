@@ -3,7 +3,7 @@ import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
 import io.ktor.utils.io.core.*
 import kotlinx.coroutines.*
-import java.util.UUID
+import java.util.*
 
 var count = 0
 val addresses: MutableMap<UUID, SocketAddress> = mutableMapOf() // Usando um conjunto para evitar duplicatas
@@ -13,9 +13,7 @@ fun main(args: Array<String>) {
     velha()
     runBlocking {
         val selectorManager = SelectorManager(Dispatchers.IO)
-        val server = aSocket(selectorManager)
-            .udp()
-            .bind(InetSocketAddress("192.168.1.24", 9002))
+        val server = aSocket(selectorManager).udp().bind(InetSocketAddress("192.168.1.21", 9002))
         println("Server is listening at ${server.localAddress}")
 
         server.use {
@@ -48,26 +46,39 @@ fun main(args: Array<String>) {
                             val add: MutableSet<Usuario> = mutableSetOf()
                             add.addAll(pos.getUsuarios())
                             add.add(mensagem.getUsuario()!!)
+                            val nSimbolos: MutableMap<Int, UUID> = mutableMapOf()
+                            for (x in pos.getSimbolo()) {
+                                nSimbolos[x.key] = x.value
+                            }
+                            nSimbolos[pos.getUsuarios().size+1] = mensagem.getUsuario()!!.getId()
                             pos.setUsuarios(add)
+                            pos.setSimbolo(nSimbolos)
+
+                            println("Simbolo X:" + pos.getSimbolo()[1])
                             for (usuario in pos.getUsuarios()) {
-                                pos.getPlacar()[usuario.getId()]=0
+                                pos.getPlacar()[usuario.getId()] = 0
                             }
                             println("Client conectando a sala:" + mensagem.getIdSala())
+                            println("CLIENTES NA SALA: " + pos.getUsuarios())
                             nmensagem.setIdSala(mensagem.getIdSala()!!)
-                            mensagem.setSala(pos)
-                            println(pos.toString())
+                            nmensagem.setSala(pos)
+                            println(pos.getSimbolo().toString())
                             nmensagem.setEntrar(true)
+
                         }
                     } else if (mensagem.getMovimento()) {
+                        println("MOVIMENTO!!!!!!!!!!")
                         val pos = salas[mensagem.getIdSala()]
-                        pos!!.getJogo().setPosicoes(mensagem.getSala()!!.getJogo().getPosicoes()!!)
+                        println("JOGO: "+ mensagem.getSala()!!.getJogo())
+                        println("Jogadores: "+ pos!!.getUsuarios())
+                        pos!!.setJogo(mensagem.getSala()!!.getJogo())
                         if (pos.getJogo().checkGameStatus() != -1) {
                             pos.setResetarTabuleiro(true)
                             if (pos.getJogo().checkGameStatus() == 1) {
                                 val nplacar: MutableMap<UUID, Int> = pos.getPlacar();
                                 val placaratual =
                                     if (pos.getPlacar()[pos.getSimbolo()[1]] == null) 0 else pos.getPlacar()[pos.getSimbolo()[1]]
-                                nplacar[pos.getSimbolo()[1]!!] = placaratual!!+1
+                                nplacar[pos.getSimbolo()[1]!!] = placaratual!! + 1
                                 pos.setPlacar(nplacar)
                             } else if (pos.getJogo().checkGameStatus() == 2) {
                                 val nplacar: MutableMap<UUID, Int> = pos.getPlacar();
@@ -76,20 +87,31 @@ fun main(args: Array<String>) {
                                 nplacar[pos.getSimbolo()[2]!!] = placaratual!! + 1
                                 pos.setPlacar(nplacar)
                             }
+                            nmensagem.setMovimento(true);
+                            nmensagem.setSala(pos)
                         }
                     } else if (mensagem.getSair()) {
-                        val pos = salas[mensagem.getIdSala()]
-                        pos!!.getUsuarios().remove(mensagem.getUsuario()!!)
+                        println(
+                            "Jogador " + mensagem.getUsuario()!!.getId() + " Saindo da sala " + mensagem.getIdSala()
+                        )
+                        val pos = salas[mensagem.getIdSala()]!!
+                        pos.getUsuarios().removeIf { it.getId() == mensagem.getUsuario()!!.getId() }
                         pos.setResetarTabuleiro(true)
                     }
                     val tAddresses: MutableSet<SocketAddress> = mutableSetOf();
                     nmensagem.setSalas(salas);
                     val mBytes = objUtil.toBytes(nmensagem)
-                    if (mensagem.getSala() != null) {
-                        for (x in mensagem.getSala()!!.getUsuarios()) {
+                    println(nmensagem.getSala())
+                    if (nmensagem.getSala() != null) {
+                        println("Usuario entrando em sala")
+                        for (x in nmensagem.getSala()!!.getUsuarios()) {
+                            println(x)
                             tAddresses.add(addresses[x.getId()]!!)
                         }
-                    } else {
+                    } else if (mensagem.getUsuario() == null) {
+                        tAddresses.add(datagram.address)
+                    }  else {
+                        println("n é possível")
                         tAddresses.addAll(addresses.values);
                     }
                     for (x in tAddresses) {
@@ -101,7 +123,9 @@ fun main(args: Array<String>) {
 
                                 server.send(Datagram(builder.build(), x))
 
-                                println(salas)
+                                for (z in salas) {
+                                    println("Sala " + z + " usuarios: " + z.value.getUsuarios())
+                                }
                                 println("Sent packet to: $x")
                             } catch (e: Throwable) {
                                 e.printStackTrace()
@@ -116,6 +140,7 @@ fun main(args: Array<String>) {
         }
     }
 }
+
 
 fun criarSala() {
     val sala = Sala(mutableSetOf(), Jogo())
@@ -142,4 +167,8 @@ fun velha() {
     jogo.setPosicoes(board)
     val result = jogo.checkGameStatus()
     println("Status do jogo: $result")
+}
+fun randomChoice(): Int {
+    val random = Random(System.currentTimeMillis())
+    return random.nextInt(2)
 }

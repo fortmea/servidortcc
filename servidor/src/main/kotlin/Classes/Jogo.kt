@@ -13,7 +13,7 @@ class Jogo : Serializable {
         return this.posicoes;
     }
     fun checkGameStatus(): Int {
-        val board = posicoes
+        val board = posicoes?.toMutableMap()
         // Define todas as possíveis combinações de vitória
         val winCombinations = listOf(
             listOf("A1", "A2", "A3"),
