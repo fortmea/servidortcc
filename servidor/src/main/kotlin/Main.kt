@@ -13,7 +13,7 @@ fun main(args: Array<String>) {
     velha()
     runBlocking {
         val selectorManager = SelectorManager(Dispatchers.IO)
-        val server = aSocket(selectorManager).udp().bind(InetSocketAddress("192.168.1.21", 9002))
+        val server = aSocket(selectorManager).udp().bind(InetSocketAddress("192.168.1.26", 9002))
         println("Server is listening at ${server.localAddress}")
 
         server.use {
@@ -80,12 +80,14 @@ fun main(args: Array<String>) {
                                     if (pos.getPlacar()[pos.getSimbolo()[1]] == null) 0 else pos.getPlacar()[pos.getSimbolo()[1]]
                                 nplacar[pos.getSimbolo()[1]!!] = placaratual!! + 1
                                 pos.setPlacar(nplacar)
+                                pos.getJogo().setPosicoes(mutableMapOf())
                             } else if (pos.getJogo().checkGameStatus() == 2) {
                                 val nplacar: MutableMap<UUID, Int> = pos.getPlacar();
                                 val placaratual =
                                     if (pos.getPlacar()[pos.getSimbolo()[2]] == null) 0 else pos.getPlacar()[pos.getSimbolo()[2]]
                                 nplacar[pos.getSimbolo()[2]!!] = placaratual!! + 1
                                 pos.setPlacar(nplacar)
+                                pos.getJogo().setPosicoes(mutableMapOf())
                             }
                             nmensagem.setMovimento(true);
                             nmensagem.setSala(pos)
