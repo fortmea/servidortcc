@@ -13,7 +13,7 @@ fun main(args: Array<String>) {
     velha()
     runBlocking {
         val selectorManager = SelectorManager(Dispatchers.IO)
-        val server = aSocket(selectorManager).udp().bind(InetSocketAddress("192.168.1.26", 9002))
+        val server = aSocket(selectorManager).udp().bind(InetSocketAddress("192.168.1.25", 9002))
         println("Server is listening at ${server.localAddress}")
 
         server.use {
